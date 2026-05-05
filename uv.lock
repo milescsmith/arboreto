@@ -46,7 +46,7 @@ requires-dist = [
     { name = "distributed", specifier = ">=2026.3.0" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "numpy", specifier = ">=2.0,<2.5" },
-    { name = "pandas", specifier = ">=3.0.2" },
+    { name = "pandas", specifier = ">=2.0" },
     { name = "scikit-learn", specifier = ">=1.8.0" },
     { name = "scipy", specifier = ">=1.17.1" },
     { name = "xgboost", specifier = ">=3.2.0" },
