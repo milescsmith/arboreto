@@ -106,3 +106,7 @@ canopy_walk_whitsundays002 copy.jpg
 
 # dask
 *dask-worker-space/
+
+debug.py
+
+.vscode/

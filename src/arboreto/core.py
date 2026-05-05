@@ -2,7 +2,7 @@
 Core functional building blocks, composed in a Dask graph for distributed computation.
 """
 
-import logging
+# import logging
 from enum import StrEnum
 from typing import Any, Literal
 
@@ -13,6 +13,7 @@ import scipy as sp
 from dask import delayed
 from dask.dataframe import from_delayed
 from dask.dataframe.utils import make_meta
+from loguru import logger
 from sklearn.ensemble import ExtraTreesRegressor, GradientBoostingRegressor, RandomForestRegressor
 from xgboost import XGBRegressor
 
@@ -25,7 +26,7 @@ from ._docs import (
 )
 from .utils import _doc_params
 
-logger = logging.getLogger(__package__)
+# logger = logging.getLogger(__package__)
 
 DEMON_SEED = 666
 ANGEL_SEED = 777
@@ -48,41 +49,16 @@ SGBM_KWARGS = {
     "subsample": 0.9,
 }
 
-class SklearnRegressorFactory(StrEnum):
+# probably need args to pass to xgboost as above
+# XBGM_KWARGS = {}
+
+class RegressorType(StrEnum):
     RF = "RandomForestRegressor"
     ET = "ExtraTreesRegressor"
     GBM = "GradientBoostingRegressor"
     XGB = "XGBRegressor"
 
 type Regressor = RandomForestRegressor | ExtraTreesRegressor | GradientBoostingRegressor | XGBRegressor
-# @_doc_params(regressor_arg=doc_regressor_arg)
-# def is_sklearn_regressor(regressor_type) -> bool:
-#     """
-#     Parameters
-#     ----------
-#     {regressor_arg}
-
-#     Returns
-#     -------
-#     bool :
-#         value indicating whether the regressor type is a scikit-learn regressor, following the scikit-learn API.
-#     """
-#     return regressor_type.upper() in SklearnRegressorFactory
-
-
-# @_doc_params(regressor_arg=doc_regressor_arg)
-# def is_xgboost_regressor(regressor_type) -> bool:
-#     """
-#     Parameters
-#     ----------
-#     {regressor_arg}
-
-#     Returns
-#     -------
-#     bool :
-#         value indicating whether the regressor type is the xgboost regressor.
-#     """
-#     return regressor_type.upper() == "XGB"
 
 
 @_doc_params(
@@ -90,7 +66,7 @@ type Regressor = RandomForestRegressor | ExtraTreesRegressor | GradientBoostingR
     regressor_kwargs=doc_regressor_kwargs
     )
 def is_oob_heuristic_supported(
-    regressor_type: SklearnRegressorFactory,
+    regressor_type: RegressorType,
     regressor_kwargs: dict[str, Any]
     ):
     """
@@ -105,7 +81,7 @@ def is_oob_heuristic_supported(
         whether early stopping heuristic based on out-of-bag improvement is supported.
 
     """
-    return regressor_type == SklearnRegressorFactory.GBM and "subsample" in regressor_kwargs and regressor_kwargs["subsample"] < 1.0
+    return regressor_type == RegressorType.GBM and "subsample" in regressor_kwargs and regressor_kwargs["subsample"] < 1.0
 
 
 @_doc_params(
@@ -141,7 +117,7 @@ def to_tf_matrix(
     regressor_kwargs=doc_regressor_kwargs
 )
 def fit_model(
-    regressor_type: SklearnRegressorFactory,
+    regressor_type: RegressorType,
     regressor_kwargs: dict[str, Any],
     tf_matrix: npt.ArrayLike,
     target_gene_expression: npt.ArrayLike,
@@ -176,13 +152,17 @@ def fit_model(
         raise ValueError(msg)
 
     match regressor_type:
-        case SklearnRegressorFactory.RF:
+        case RegressorType.RF:
+            logger.debug("initializing random forest regressor")
             regressor = RandomForestRegressor(random_state=seed, **regressor_kwargs)
-        case SklearnRegressorFactory.ET:
+        case RegressorType.ET:
+            logger.debug("initializing extra trees regressor")
             regressor = ExtraTreesRegressor(random_state=seed, **regressor_kwargs)
-        case SklearnRegressorFactory.GBM:
+        case RegressorType.GBM:
+            logger.debug("initializing gradient boosting regressor")
             regressor = GradientBoostingRegressor(random_state=seed, **regressor_kwargs)
-        case SklearnRegressorFactory.XGB:
+        case RegressorType.XGB:
+            logger.debug("initializing xgboost regressor")
             regressor = XGBRegressor(random_state=seed, **regressor_kwargs)
         case _:
             msg = f"{regressor_type!s} is unknown and unsupported."
@@ -198,7 +178,7 @@ def fit_model(
     return regressor
 
 @_doc_params(regressor_arg=doc_regressor_arg, regressor_kwargs=doc_regressor_kwargs)
-def to_feature_importances(regressor_type: SklearnRegressorFactory, regressor_kwargs: dict[str, Any], trained_regressor: Regressor) -> np.ndarray:
+def to_feature_importances(regressor_type: RegressorType, regressor_kwargs: dict[str, Any], trained_regressor: Regressor) -> np.ndarray:
     """Motivation: when the out-of-bag improvement heuristic is used, we cancel the effect of normalization by dividing
     by the number of trees in the regression ensemble by multiplying again by the number of trees used.
 
@@ -248,7 +228,7 @@ def to_meta_df(trained_regressor: Regressor, target_gene_name: str):
 
 @_doc_params(regressor_arg=doc_regressor_arg, regressor_kwargs=doc_regressor_kwargs, tf_gene_args=doc_tf_gene_args)
 def to_links_df(
-    regressor_type: SklearnRegressorFactory,
+    regressor_type: RegressorType,
     regressor_kwargs: dict[str, Any],
     trained_regressor: Regressor,
     tf_matrix_gene_names: list[str],
@@ -352,10 +332,10 @@ def clean(
 
 #     return result
 
-
+@logger.catch(level="DEBUG")
 @_doc_params(regressor_arg=doc_regressor_arg, regressor_kwargs=doc_regressor_kwargs, tf_args=doc_tf_matrix_args)
 def infer_partial_network(
-    regressor_type: SklearnRegressorFactory,
+    regressor_type: RegressorType,
     regressor_kwargs: dict[str, Any],
     tf_matrix: npt.ArrayLike | sp.sparse.spmatrix,
     tf_matrix_gene_names: list[str],
@@ -518,8 +498,8 @@ def create_graph(
              If include_meta is True, returns a tuple: the links DataFrame and the meta DataFrame.
     """
 
-    if not expression_matrix.shape[1] != len(gene_names):
-        msg = "Number of columns in expression_matrix does not match the number of gene names."
+    if expression_matrix.shape[1] != len(gene_names):
+        msg = f"Number of columns ({expression_matrix.shape[1]}) in expression_matrix does not match the number of gene names ({len(gene_names)})."
         raise ValueError(msg)
     if client is None:
         msg = "client is required"

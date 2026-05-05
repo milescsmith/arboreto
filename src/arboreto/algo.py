@@ -1,7 +1,7 @@
 """
 Top-level functions.
 """
-from enum import StrEnum
+# from enum import StrEnum
 from typing import Literal
 
 import distributed
@@ -11,15 +11,10 @@ import scipy as sp
 from loguru import logger
 
 from ._docs import doc_algo_args, doc_client_args, doc_misc_args
-from .core import EARLY_STOP_WINDOW_LENGTH, RF_KWARGS, SGBM_KWARGS, create_graph
+from .core import EARLY_STOP_WINDOW_LENGTH, RF_KWARGS, SGBM_KWARGS, RegressorType, create_graph
 from .logging import init_logger
 from .utils import _doc_params
 
-
-class RegressorType(StrEnum):
-    RF = "RF"
-    GBM = "GBM"
-    ET = "ET"
 
 @_doc_params(
     common_algo_params=doc_algo_args,
@@ -115,7 +110,7 @@ def diy(
     regressor_type : RegressorType,
     regressor_kwargs,
     gene_names: list[str] | None = None,
-    tf_names: str | Literal["all"] = "all",
+    tf_names: str | list[str] | Literal["all"] = "all",
     client_or_address: str | distributed.Client | Literal["local"] = "local",
     early_stop_window_length: int = EARLY_STOP_WINDOW_LENGTH,
     limit: int | None = None,
@@ -127,7 +122,7 @@ def diy(
     ----------
     {common_algo_params}
     {common_dask_args}
-    regressor_type : :class:`RegressorType`
+    regressor_type : :class:`SklearnRegressorFactory`
         Case insensitive.
     regressor_kwargs : dict[str, Any]
         a dictionary of key-value pairs that configures the regressor.
@@ -174,7 +169,7 @@ def diy(
 
         logger.debug("finished")
 
-
+@logger.catch(level="DEBUG")
 @_doc_params(
     common_dask_args=doc_client_args
     )
@@ -196,6 +191,8 @@ def _prepare_client(client_or_address):
         if no valid client input was provided.
     """
 
+    if isinstance(client_or_address, str):
+        client_or_address = client_or_address.lower()
     match client_or_address:
         case None if client_or_address.lower == "local":
             local_cluster = distributed.LocalCluster(diagnostics_port=None)
@@ -207,19 +204,22 @@ def _prepare_client(client_or_address):
                 local_cluster.close()
 
             ret_val = (cl, close_client_and_local_cluster)
-        case str(client) if client.lower() != "local":
-            cl = distributed.Client(client)
+        case str():
+            if client_or_address.lower() == "local":
+                cl = distributed.Client()
+            else:
+                cl = distributed.Client(client_or_address)
 
             def close_client(verbose=False):
                 logger.debug("shutting down client")
                 cl.close()
 
-            ret_val = (cl, close_client, None)
+            ret_val = (cl, close_client)
         case distributed.Client(_):
             def close_dummy(verbose=False):
                 logger.debug("not shutting down client, client was created externally")
 
-            ret_val = (client_or_address, close_dummy, None)
+            ret_val = (client_or_address, close_dummy)
         case _:
             msg = f"Invalid client specified {client_or_address!s}"
             raise ValueError(msg)
