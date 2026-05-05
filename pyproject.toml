@@ -1,0 +1,83 @@
+[build-system]
+requires = ["uv_build>=0.11.0,<0.12.0"]
+build-backend = "uv_build"
+
+[project]
+name = "arboreto"
+version = "0.2.0"
+description = "Scalable gene regulatory network inference using tree-based ensemble regressors"
+authors = [
+    { name = "Thomas Moerman", email = "thomas.moerman@gmail.com" }
+]
+maintainers = [
+    { name = "Miles Smith", email = "miles-smith@omrf.org" }
+]
+license = {text = "BSD-3-Clause"}
+readme = {file = "README.rst", content-type="text/x-rst"}
+requires-python = ">=3.12"
+dependencies = [
+    "dask[complete]>=2026.3.0",
+    "distributed>=2026.3.0",
+    "loguru>=0.7.3",
+    "numpy>=2.0,<2.5",
+    "pandas>=3.0.2",
+    "scikit-learn>=1.8.0",
+    "scipy>=1.17.1",
+    "xgboost>=3.2.0",
+]
+keywords=['gene', 'regulatory', 'network', 'inference', 'regression', 'ensemble', 'scalable', 'dask']
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3 :: Only",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Typing :: Typed",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+homepage = "https://github.com/milescsmith/arboreto"
+repository = "https://github.com/milescsmith/arboreto"
+changelog = "https://github.com/milescsmith/arboreto/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+    "nox>=2026.4.10",
+    "pytest>=9.0.3",
+    "ruff>=0.14.11",
+    "ty>=0.0.11",
+]
+tests = [
+    "codecov>=2.1.13",
+    "coverage>=7.8.0",
+    "nox>=2025.5.1",
+    "pytest>=8.3.5",
+    "pytest-xdist>=3.6.1",
+]
+
+
+[tool.coverage.paths]
+source = ["src", "*/site-packages"]
+
+[tool.coverage.run]
+branch = true
+source = ["package"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 100
+
+[tool.pytest.ini_options]
+pythonpath = "."
+addopts = [
+    "--import-mode=importlib",
+]
+typeguard-packages = "package"
+
